@@ -1,2 +1,7 @@
 #!/bin/sh
-echo "--- {}"
+cat << EOF
+---
+default_process_types:
+  environment:
+    LD_LIBRARY_PATH: /app/tmp/libssl/usr/lib/x86_64-linux-gnu
+EOF

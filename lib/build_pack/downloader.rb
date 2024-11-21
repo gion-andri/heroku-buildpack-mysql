@@ -8,7 +8,7 @@ module BuildPack
 
     LIBSSL1_1_BASE_URL = "http://security.ubuntu.com/ubuntu/pool/main/o/openssl/"
     # example: libssl1.1_1.1.0g-2ubuntu4_amd64.deb
-    LIBSSL_REGEX = /.*(libssl1\.1_1\.1\.\d[a-z]-\dubuntu\d_amd64.deb).*/
+    LIBSSL_REGEX = /.*(libssl1\.1_1\.1\.[0-9][a-z]-[0-9]ubuntu[0-9\.]+_amd64\.deb).*/
 
     class << self
       def download_mysql_to(path)
@@ -22,7 +22,7 @@ module BuildPack
         Logger.log_header("Downloading libssl 1.1 package")
         libssl = most_recent_client(LIBSSL1_1_BASE_URL, LIBSSL_REGEX)
         Logger.log("Selecting: #{libssl}")
-        File.open(path, 'w+').write(Net::HTTP.get(URI.parse(LIBSSL1_1_BASE_URL)))
+        File.open(path, 'w+').write(Net::HTTP.get(URI.parse("#{LIBSSL1_1_BASE_URL}#{libssl}")))
       end
 
       def most_recent_client(base_url, latest_client_regex)

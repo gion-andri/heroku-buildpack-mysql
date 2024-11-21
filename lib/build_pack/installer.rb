@@ -85,7 +85,8 @@ module BuildPack
 
       def cleanup
         Logger.log_header("Cleaning up")
-        FileUtils.remove_dir(@mysql_path)
+        # Don't remove libssl directory as it's needed at runtime
+        # FileUtils.remove_dir(@mysql_path)
       end
     end
   end

@@ -27,6 +27,7 @@ module BuildPack
       def make_dirs
         FileUtils.mkdir_p(@bin_path)
         FileUtils.mkdir_p(@tmp_path)
+        FileUtils.mkdir_p(File.dirname(@mysql_pkg))
       end
 
       def client_exists?

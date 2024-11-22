@@ -4,7 +4,7 @@ module BuildPack
   class Downloader
     MYSQL_BASE_URL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-8.0/"
     # example: "mysql-client-core-8.0_8.0.22-0ubuntu0.20.04.1_amd64.deb"
-    MYSQL_REGEX = /.*(mysql-client-core-8\.0_8\.0\.\d\d-0ubuntu0\.20\.\d\d\.\d_amd64.deb).*/
+    MYSQL_REGEX = /.*(mysql-client-core-8\.0_8\.0\.\d\d-0ubuntu0\.24\.\d\d\.\d_amd64.deb).*/
 
     LIBSSL1_1_BASE_URL = "http://security.ubuntu.com/ubuntu/pool/main/o/openssl/"
     # example: libssl1.1_1.1.0g-2ubuntu4_amd64.deb

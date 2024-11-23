@@ -3,7 +3,8 @@ require 'net/http'
 module BuildPack
   class Downloader
     MYSQL_BASE_URL = "https://repo.mysql.com/apt/ubuntu/pool/mysql-8.4-lts/m/mysql-community/"
-    MYSQL_REGEX = /.*(mysql-community-client-core_8\.4\.\d+-\d+ubuntu\d+\.\d+_amd64\.deb).*/
+        # example: mysql-community-client-core_8.4.3-1ubuntu24.04_amd64.deb
+    MYSQL_REGEX = /.*(mysql-community-client-core_8\.4\.\d+-\d+ubuntu24\.\d+_amd64\.deb).*/
 
     class << self
       def download_mysql_to(path)

@@ -7,12 +7,8 @@ module BuildPack
       def install(build_dir, cache_dir)
         init_paths(build_dir, cache_dir)
         make_dirs
-        Downloader.download_latest_client_to(@mysql_pkg) unless cached?
-        if client_exists?
-          install_client and cleanup
-        else
-          fail_install
-        end
+        install_mysql
+        cleanup
       end
 
       private
@@ -28,22 +24,21 @@ module BuildPack
       def make_dirs
         FileUtils.mkdir_p(@bin_path)
         FileUtils.mkdir_p(@tmp_path)
-      end
-
-      def cached?
-        if exists = client_exists?
-          Logger.log_header("Using MySQL Client package from cache")
-        end
-
-        exists
+        FileUtils.mkdir_p(File.dirname(@mysql_pkg))
       end
 
       def client_exists?
-        File.exist?(@mysql_pkg)
+        if File.exist?(@mysql_pkg)
+          Logger.log_header("Using MySQL Client package from cache")
+          return true
+        end
+        false
       end
 
-      def install_client
+      def install_mysql
+        Downloader.download_mysql_to(@mysql_pkg) unless client_exists?
         run_command_with_message(command: "dpkg -x #{@mysql_pkg} #{@mysql_path}", message: "Installing MySQL Client")
+
         fix_perms_and_mv_binaries
       end
 
@@ -55,16 +50,10 @@ module BuildPack
       end
 
       def fix_perms_and_mv_binaries
-        # TODO: Doing a glob for some reason causes issues on heroku-16,
-        #       erroring out as it can't find the files to chmod and mv.
-        #       Specifying `mysqldump` specifically for now. Otherwise use:
-        # ```
-        # binaries = Dir.glob("#{@mysql_binaries}/*")
-        # ```
         mysql_binary = Dir.glob("#{@mysql_binaries}/mysql")
         FileUtils.chmod("u=wrx", mysql_binary)
         FileUtils.mv(mysql_binary, @bin_path)
-        
+
         mysqldump_binary = Dir.glob("#{@mysql_binaries}/mysqldump")
         FileUtils.chmod("u=wrx", mysqldump_binary)
         FileUtils.mv(mysqldump_binary, @bin_path)
@@ -73,11 +62,6 @@ module BuildPack
       def cleanup
         Logger.log_header("Cleaning up")
         FileUtils.remove_dir(@mysql_path)
-      end
-
-      def fail_install
-        Logger.log_header("Failing mysql client installation as no suitable clients were found")
-        exit 1
       end
     end
   end

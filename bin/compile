@@ -1,12 +1,140 @@
-#!/usr/bin/env ruby
+#!/usr/bin/env bash
+set -euo pipefail
 
-# sync output
-$stdout.sync = true
+# Log functions
+log() {
+  echo "       $1" >&2
+}
 
-require_relative "../lib/build_pack"
+log_header() {
+  echo "-----> $1" >&2
+}
 
-build_dir = ARGV[0]
-cache_dir = ARGV[1]
+# Constants
+MYSQL_BASE_URL="https://repo.mysql.com/apt/ubuntu/pool/mysql-8.4-lts/m/mysql-community/"
+# Regex for matching package filenames like:
+# mysql-community-client-core_8.4.3-1ubuntu24.04_amd64.deb
+MYSQL_REGEX='mysql-community-client-core_8\.4\.[0-9]+-[0-9]+ubuntu24\.[0-9]+_amd64\.deb'
 
-BuildPack.run(build_dir, cache_dir)
+# Ensure we have exactly 3 arguments: build_dir, cache_dir and env_dir
+if [ "$#" -ne 3 ]; then
+  echo "Usage: $0 <build_dir> <cache_dir> <env_dir>"
+  exit 1
+fi
 
+build_dir="$1"
+cache_dir="$2"
+
+# Initialize paths
+bin_path="${build_dir}/bin"
+tmp_path="${build_dir}/tmp"
+mysql_path="${tmp_path}/mysql-client-core"
+mysql_binaries="${mysql_path}/usr/bin"
+mysql_pkg="${cache_dir}/mysql-client-core.deb"
+
+make_dirs() {
+  mkdir -p "$bin_path"
+  mkdir -p "$tmp_path"
+  mkdir -p "$(dirname "$mysql_pkg")"
+}
+
+client_exists() {
+  if [ -f "$mysql_pkg" ]; then
+    log_header "Using MySQL Client package from cache"
+    return 0
+  fi
+  return 1
+}
+
+most_recent_client() {
+  log_header "Looking for clients at: $MYSQL_BASE_URL"
+  local response
+  response=$(curl -s "$MYSQL_BASE_URL")
+  log "available clients:"
+
+  local most_recent=""
+  # Extract matching package filenames using grep
+  local matches
+  matches=$(echo "$response" | grep -Eo 'mysql-community-client-core_8\.4\.[0-9]+-[0-9]+ubuntu24\.[0-9]+_amd64\.deb' || true)
+
+  if [ -z "$matches" ]; then
+    log "No suitable clients available. Failing buildpack."
+    exit 1
+  fi
+
+  # Loop through each match, log it, and update the "most recent" one.
+  for match in $matches; do
+    log "$match"
+    if [[ "$match" > "$most_recent" ]]; then
+      most_recent="$match"
+    fi
+  done
+
+  if [ -z "$most_recent" ]; then
+    log "No suitable clients available. Failing buildpack."
+    exit 1
+  fi
+
+  echo "$most_recent"
+}
+
+download_mysql_to() {
+  local path="$1"
+  log_header "Downloading MySQL Client package"
+  local mysql_package
+  mysql_package=$(most_recent_client)
+  log "Selecting: ${mysql_package}"
+  curl -s "${MYSQL_BASE_URL}${mysql_package}" -o "$path"
+}
+
+run_command_with_message() {
+  local cmd="$1"
+  local message="$2"
+  log_header "$message"
+  log "$cmd"
+  # Execute the command and print its output
+  eval "$cmd"
+}
+
+fix_perms_and_mv_binaries() {
+  local mysql_bin="${mysql_binaries}/mysql"
+  local mysqldump_bin="${mysql_binaries}/mysqldump"
+
+  if [ -f "$mysql_bin" ]; then
+    chmod u=rwx "$mysql_bin"
+    mv "$mysql_bin" "$bin_path/"
+  else
+    log "mysql binary not found"
+  fi
+
+  if [ -f "$mysqldump_bin" ]; then
+    chmod u=rwx "$mysqldump_bin"
+    mv "$mysqldump_bin" "$bin_path/"
+  else
+    log "mysqldump binary not found"
+  fi
+}
+
+install_mysql() {
+  if ! client_exists; then
+    download_mysql_to "$mysql_pkg"
+  fi
+
+  run_command_with_message "dpkg -x \"$mysql_pkg\" \"$mysql_path\"" "Installing MySQL Client"
+  fix_perms_and_mv_binaries
+}
+
+cleanup() {
+  log_header "Cleaning up"
+  rm -rf "$mysql_path"
+}
+
+# Main installer function
+install() {
+  make_dirs
+  install_mysql
+  cleanup
+}
+
+# Run the installer
+install
